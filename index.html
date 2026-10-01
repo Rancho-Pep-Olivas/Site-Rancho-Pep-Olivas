@@ -251,6 +251,13 @@ ul{ margin:0; padding:0; list-style:none; }
 .guia-config__rodape{ text-align:center; margin-top:30px; padding-top:22px; border-top:1px solid var(--terra-20); font-size:.84rem; color:var(--terra-55); }
 </style>
 <style>
+/* ---------- Campos de senha ---------- */
+.senha-caixa{ position:relative; display:block; }
+.senha-caixa input{ padding-right:84px !important; }
+.senha-olho{ position:absolute; right:10px; top:50%; transform:translateY(-50%); background:none; border:0; color:var(--oliva-escuro); font:inherit; font-size:.76rem; font-weight:700; cursor:pointer; padding:6px 8px; }
+.senha-status{ font-size:.82rem; margin:8px 0 0; min-height:1.2em; font-weight:600; }
+.senha-status.ok{ color:var(--oliva-escuro); }
+.senha-status.ruim{ color:var(--vinho); }
 /* ---------- Assistente de instalação ---------- */
 .assistente{ max-width:700px; margin:0 auto; padding:34px 0 60px; }
 .assistente__titulo{ font-size:1.6rem; }
@@ -1784,6 +1791,36 @@ values ('BEMVINDO10', 'percentual', 10, 0, false) on conflict (codigo) do nothin
     if (!/[A-Za-z]/.test(senha) || !/\d/.test(senha)) return 'Misture letras e números.';
     return '';
   }
+  /* ---- campos de senha: botão "mostrar/ocultar" e aviso "✓ Senha ok" (vale para todos os formulários) ---- */
+  function atualizarStatusSenha(form) {
+    var p = form.querySelector('[name=senha],[name=nova],[name=senhaNova]'), rep = form.querySelector('[name=repita]'), el = form.querySelector('.senha-status');
+    if (!p || !el) return;
+    var v = p.value, msg;
+    if (!v) { el.textContent = ''; el.className = 'senha-status'; return; }
+    if ((msg = validarForcaSenha(v))) { el.textContent = '✗ ' + msg; el.className = 'senha-status ruim'; return; }
+    if (rep && rep.value !== v) { el.textContent = rep.value ? '✗ As duas senhas ainda não são iguais.' : '✓ Senha ok — agora repita a mesma senha ao lado.'; el.className = rep.value ? 'senha-status ruim' : 'senha-status ok'; return; }
+    el.textContent = rep ? '✓ Senha ok — as duas são iguais.' : '✓ Senha ok'; el.className = 'senha-status ok';
+  }
+  function melhorarCamposSenha() {
+    document.querySelectorAll('input[type=password]:not([data-olho])').forEach(function (inp) {
+      inp.setAttribute('data-olho', '1');
+      var caixa = document.createElement('span'); caixa.className = 'senha-caixa';
+      inp.parentNode.insertBefore(caixa, inp); caixa.appendChild(inp);
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'senha-olho'; b.textContent = 'mostrar'; b.setAttribute('aria-label', 'Mostrar ou ocultar a senha');
+      b.addEventListener('click', function () { var mostrar = inp.type === 'password'; inp.type = mostrar ? 'text' : 'password'; b.textContent = mostrar ? 'ocultar' : 'mostrar'; });
+      caixa.appendChild(b);
+    });
+    document.querySelectorAll('form').forEach(function (f) {
+      if (f.getAttribute('data-status-senha') || !f.querySelector('[name=senha],[name=nova],[name=senhaNova]')) return;
+      f.setAttribute('data-status-senha', '1');
+      var alvo = f.querySelector('[name=repita]') || f.querySelector('[name=senha],[name=nova],[name=senhaNova]');
+      var bloco = alvo.closest('.grade-campos') || alvo.closest('.campo');
+      var st = document.createElement('p'); st.className = 'senha-status'; st.setAttribute('aria-live', 'polite');
+      bloco.parentNode.insertBefore(st, bloco.nextSibling);
+      f.addEventListener('input', function () { atualizarStatusSenha(f); });
+    });
+  }
+  try { new MutationObserver(melhorarCamposSenha).observe(document.body, { childList: true, subtree: true }); melhorarCamposSenha(); } catch (e) { /* navegador antigo: segue sem o botão */ }
 
   /* ---- PIX "copia e cola" (BR Code / EMV), sem gateway, sem taxa ---- */
   function semAcentoMaiusculo(texto, tamanho) {
